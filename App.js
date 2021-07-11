@@ -15,6 +15,28 @@ var vectorUrl =
 const App = () => {
   const mapRef = useRef();
 
+  const handleTilePress = async tileData => {
+    const robustId = tileData.features.length
+      ? tileData.features[0].properties.robust_id
+      : null;
+    if (robustId) {
+      try {
+        const response = await (
+          await fetch(
+            `https://reportallusa.com/api/rest_services/client=${clientKey}/Parcels/MapServer/0/query?where=robust_id=%27${robustId}%27`,
+          )
+        ).json();
+        response.features.forEach(feature => {
+          console.log({
+            attributes: feature.attributes,
+          });
+        });
+      } catch (error) {
+        console.log({ error });
+      }
+    }
+  };
+
   return (
     <View style={styles.page}>
       <View style={styles.container}>
@@ -24,6 +46,7 @@ const App = () => {
           <MapboxGL.VectorSource
             ref={mapRef}
             id="parcels"
+            onPress={handleTilePress}
             tileUrlTemplates={[vectorUrl]}
             minZoomLevel={14}
             maxZoomLevel={17}>
@@ -33,18 +56,18 @@ const App = () => {
               sourceLayerID="parcels"
               style={{
                 fillOutlineColor: 'transparent',
-                fillColor: 'rgba(144,238,144,1)',
-              }}>
-              <MapboxGL.LineLayer
-                id="parcels-line"
-                sourceID="parcels"
-                sourceLayerID="parcels"
-                style={{
-                  lineWidth: 3,
-                  lineColor: '#ffa748',
-                }}
-              />
-            </MapboxGL.FillLayer>
+                fillColor: '#55ff3388',
+              }}
+            />
+            <MapboxGL.LineLayer
+              id="parcels-line"
+              sourceID="parcels"
+              sourceLayerID="parcels"
+              style={{
+                lineWidth: 3,
+                lineColor: '#ff9922',
+              }}
+            />
           </MapboxGL.VectorSource>
         </MapboxGL.MapView>
       </View>
