@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Dimensions,
   StyleSheet,
@@ -29,11 +29,12 @@ const SearchType = {
 
 const App = () => {
   const [region, setRegion] = useState('Cuyahoga County, Ohio');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState('Smith;Jones');
   const [searchType, setSearchType] = useState(SearchType.ownerName);
   const [results, setResults] = useState([]);
 
   const mapRef = useRef();
+  const cameraRef = useRef();
 
   const handleTilePress = async tileData => {
     const robustId = tileData.features.length
@@ -73,10 +74,12 @@ const App = () => {
     try {
       const response = await fetch(url);
       const data = await response.json();
-      const _results = data.results.map(result => ({
-        ...result,
-        geom_as_wkt: polygonToCoords(result.geom_as_wkt),
-      }));
+      const _results = data.results.map(result => {
+        return {
+          ...result,
+          geom_as_wkt: polygonToCoords(result.geom_as_wkt),
+        };
+      });
       setResults(_results);
     } catch (error) {
       console.log({ error });
@@ -136,77 +139,42 @@ const App = () => {
     </View>
   );
 
+  useEffect(() => {
+    if (results.length) {
+      cameraRef.current.setCamera({
+        centerCoordinate: [results[0].longitude, results[0].latitude],
+        zoomLevel: 16,
+        animationDuration: 2000,
+      });
+    }
+  }, [results]);
+
+  const polygonShape = {
+    type: 'FeatureCollection',
+    features: results.map(result => ({
+      type: 'Feature',
+      properties: {},
+      geometry: {
+        type: 'Polygon',
+        coordinates: [result.geom_as_wkt],
+      },
+    })),
+  };
+
   const MapBoxView = (
     <MapboxGL.MapView
       style={styles.map}
       styleUrl="mapbox://styles/mapbox/light-v10">
-      <MapboxGL.VectorSource
-        ref={mapRef}
-        id="parcels"
-        onPress={handleTilePress}
-        tileUrlTemplates={[vectorUrl]}
-        minZoomLevel={14}
-        maxZoomLevel={17}>
+      <MapboxGL.Camera ref={cameraRef} />
+      <MapboxGL.ShapeSource id={'SearchPolygonSource'} shape={polygonShape}>
         <MapboxGL.FillLayer
-          id="parcels-fill"
-          sourceID="parcels"
-          sourceLayerID="parcels"
+          id="SearchPolygonFill"
           style={{
-            fillOutlineColor: 'transparent',
-            fillColor: '#55ff3388',
+            fillColor: 'purple',
+            fillOutlineColor: 'black',
           }}
         />
-        <MapboxGL.LineLayer
-          id="parcels-line"
-          sourceID="parcels"
-          sourceLayerID="parcels"
-          style={{
-            lineWidth: 3,
-            lineColor: '#ff9922',
-          }}
-        />
-        {results.map((result, idx) => (
-          <MapboxGL.ShapeSource
-            cluster={true}
-            clusterRadius={512}
-            shape={{
-              type: 'Feature',
-              geometry: {
-                type: 'Polygon',
-                coordinates: result.geom_as_wkt,
-              },
-              properties: {
-                county_name: result.county_name,
-                muni_name: result.muni_name,
-                state_abbr: result.state_abbr,
-                addr_number: result.addr_number,
-                addr_street_name: result.addr_street_name,
-                physcity: result.physcity,
-                physzip: result.physzip,
-                census_zip: result.census_zip,
-                owner: result.owner,
-                mail_name: result.mail_name,
-                mail_address1: result.mail_address1,
-                mail_address3: result.mail_address3,
-                trans_date: result.trans_date,
-                sale_price: result.sale_price,
-                bldg_sqft: result.bldg_sqft,
-                ngh_code: result.ngh_code,
-                land_use_code: result.land_use_code,
-                land_use_class: result.land_use_class,
-                muni_id: result.muni_id,
-                school_dist_id: result.school_dist_id,
-                acreage_deeded: result.acreage_deeded,
-                acreage_calc: result.acreage_calc,
-                latitude: result.latitude,
-                longitude: result.longitude,
-                usps_residential: result.usps_residential,
-              },
-            }}
-            key={idx}
-          />
-        ))}
-      </MapboxGL.VectorSource>
+      </MapboxGL.ShapeSource>
     </MapboxGL.MapView>
   );
 
